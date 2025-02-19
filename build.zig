@@ -36,7 +36,7 @@ pub fn build(b: *std.Build) void {
         },
     });
     simdjson_lib.addIncludePath(simdjson_dep.path("singleheader"));
-    simdjson_lib.installHeadersDirectory(simdjson_dep.path("singleheader"), ".", .{ .include_extensions = &.{"*.h"} });
+    simdjson_lib.installHeadersDirectory(simdjson_dep.path("singleheader"), ".", .{ .include_extensions = &.{".h"} });
     b.installArtifact(simdjson_lib);
 
     const fastgltf_lib: *std.Build.Step.Compile = switch (preferred_link_mode) {
@@ -54,7 +54,7 @@ pub fn build(b: *std.Build) void {
     fastgltf_lib.linkLibCpp();
     fastgltf_lib.linkLibrary(simdjson_lib);
     fastgltf_lib.addIncludePath(fastgltf_dep.path(b.pathJoin(&.{"include"})));
-    fastgltf_lib.addIncludePath(simdjson_dep.path("include"));
+    // fastgltf_lib.addIncludePath(simdjson_dep.path("include"));
     fastgltf_lib.addCSourceFiles(.{
         .root = fastgltf_dep.path("."),
         .files = &(.{ "src/fastgltf.cpp", "src/base64.cpp", "src/io.cpp" }),
@@ -68,7 +68,9 @@ pub fn build(b: *std.Build) void {
     fastgltf_lib.root_module.addCMacro("FASTGLTF_ENABLE_DEPRECATED_EXT", if (enable_deprecated_ext) "1" else "0");
     fastgltf_lib.root_module.addCMacro("FASTGLTF_DISABLE_CUSTOM_MEMORY_POOL", if (disable_custom_memory_pool) "1" else "0");
     fastgltf_lib.root_module.addCMacro("FASTGLTF_USE_64BIT_FLOAT", if (use_64bit_float) "1" else "0");
-    fastgltf_lib.installHeadersDirectory(fastgltf_dep.path(b.pathJoin(&.{ "include", "fastgltf" })), "fastgltf", .{ .include_extensions = &.{ "*.h", "*.hpp" } });
+    fastgltf_lib.installHeadersDirectory(fastgltf_dep.path(b.pathJoin(&.{ "include", "fastgltf" })), "fastgltf", .{
+        .include_extensions = &.{ ".h", ".hpp" },
+    });
     b.installArtifact(fastgltf_lib);
 
     const example = b.addExecutable(.{
