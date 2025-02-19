@@ -36,8 +36,9 @@ pub fn build(b: *std.Build) void {
         },
     });
     simdjson_lib.addIncludePath(simdjson_dep.path("singleheader"));
+    b.installArtifact(simdjson_lib);
 
-    const lib: *std.Build.Step.Compile = switch (preferred_link_mode) {
+    const fastgltf_lib: *std.Build.Step.Compile = switch (preferred_link_mode) {
         inline else => |x| switch (x) {
             .static => std.Build.addStaticLibrary,
             .dynamic => std.Build.addSharedLibrary,
@@ -49,11 +50,11 @@ pub fn build(b: *std.Build) void {
             .link_libc = true,
         }),
     };
-    lib.linkLibCpp();
-    lib.linkLibrary(simdjson_lib);
-    lib.addIncludePath(fastgltf_dep.path(b.pathJoin(&.{"include"})));
-    lib.addIncludePath(simdjson_dep.path("include"));
-    lib.addCSourceFiles(.{
+    fastgltf_lib.linkLibCpp();
+    fastgltf_lib.linkLibrary(simdjson_lib);
+    fastgltf_lib.addIncludePath(fastgltf_dep.path(b.pathJoin(&.{"include"})));
+    fastgltf_lib.addIncludePath(simdjson_dep.path("include"));
+    fastgltf_lib.addCSourceFiles(.{
         .root = fastgltf_dep.path("."),
         .files = &(.{ "src/fastgltf.cpp", "src/base64.cpp", "src/io.cpp" }),
         .flags = &.{
@@ -62,10 +63,17 @@ pub fn build(b: *std.Build) void {
             b.fmt("--std={s}", .{compile_target}),
         },
     });
-    lib.root_module.addCMacro("FASTGLTF_USE_CUSTOM_SMALLVECTOR", if (use_custom_smallvec) "1" else "0");
-    lib.root_module.addCMacro("FASTGLTF_ENABLE_DEPRECATED_EXT", if (enable_deprecated_ext) "1" else "0");
-    lib.root_module.addCMacro("FASTGLTF_DISABLE_CUSTOM_MEMORY_POOL", if (disable_custom_memory_pool) "1" else "0");
-    lib.root_module.addCMacro("FASTGLTF_USE_64BIT_FLOAT", if (use_64bit_float) "1" else "0");
+    fastgltf_lib.root_module.addCMacro("FASTGLTF_USE_CUSTOM_SMALLVECTOR", if (use_custom_smallvec) "1" else "0");
+    fastgltf_lib.root_module.addCMacro("FASTGLTF_ENABLE_DEPRECATED_EXT", if (enable_deprecated_ext) "1" else "0");
+    fastgltf_lib.root_module.addCMacro("FASTGLTF_DISABLE_CUSTOM_MEMORY_POOL", if (disable_custom_memory_pool) "1" else "0");
+    fastgltf_lib.root_module.addCMacro("FASTGLTF_USE_64BIT_FLOAT", if (use_64bit_float) "1" else "0");
+    b.installArtifact(fastgltf_lib);
 
-    b.installArtifact(lib);
+    const example = b.addExecutable(.{
+        .name = "fastgltf-example",
+        .target = target,
+        .optimize = optimize,
+    });
+    example.linkLibrary(fastgltf_lib);
+    b.installAr
 }
