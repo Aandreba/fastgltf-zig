@@ -1,7 +1,9 @@
+#include <cstdio>
 #include <fastgltf/core.hpp>
 #include <fastgltf/types.hpp>
+#include <filesystem>
 
-bool load(std::filesystem::path path) {
+static bool load(std::filesystem::path path) {
   // Creates a Parser instance. Optimally, you should reuse this across loads,
   // but don't use it across threads. To enable extensions, you have to pass
   // them into the parser's constructor.
@@ -34,6 +36,7 @@ bool load(std::filesystem::path path) {
   // The glTF 2.0 asset is now ready to be used. Simply call asset.get(),
   // asset.get_if() or asset-> to get a direct reference to the Asset class. You
   // can then access the glTF data structures, like, for example, with buffers:
+  printf("%d\n", asset->buffers.size());
   for (auto &buffer : asset->buffers) {
     // Process the buffers.
   }
@@ -48,4 +51,4 @@ bool load(std::filesystem::path path) {
   return true;
 }
 
-int main() { return 0; }
+int main() { return !load("example/Avocado.glb"); }
