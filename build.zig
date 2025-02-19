@@ -36,7 +36,7 @@ pub fn build(b: *std.Build) void {
         },
     });
     simdjson_lib.addIncludePath(simdjson_dep.path("singleheader"));
-    simdjson_lib.installHeadersDirectory(simdjson_dep.path("include"), "simdjson", .{});
+    simdjson_lib.installHeadersDirectory(simdjson_dep.path("singleheader"), ".", .{});
     b.installArtifact(simdjson_lib);
 
     const fastgltf_lib: *std.Build.Step.Compile = switch (preferred_link_mode) {
@@ -68,7 +68,7 @@ pub fn build(b: *std.Build) void {
     fastgltf_lib.root_module.addCMacro("FASTGLTF_ENABLE_DEPRECATED_EXT", if (enable_deprecated_ext) "1" else "0");
     fastgltf_lib.root_module.addCMacro("FASTGLTF_DISABLE_CUSTOM_MEMORY_POOL", if (disable_custom_memory_pool) "1" else "0");
     fastgltf_lib.root_module.addCMacro("FASTGLTF_USE_64BIT_FLOAT", if (use_64bit_float) "1" else "0");
-    fastgltf_lib.installHeadersDirectory(fastgltf_dep.path("include"), "fastgltf", .{});
+    fastgltf_lib.installHeadersDirectory(fastgltf_dep.path(b.pathJoin(&.{ "include", "fastgltf" })), "fastgltf", .{});
     b.installArtifact(fastgltf_lib);
 
     const example = b.addExecutable(.{
