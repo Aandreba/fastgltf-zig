@@ -3,7 +3,7 @@ const std = @import("std");
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     const fastgltf_dep = b.dependency("fastgltf", .{});
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -21,6 +21,9 @@ pub fn build(b: *std.Build) void {
     const compile_target = if (compile_as_cpp20) "c++20" else "c++17";
 
     const simdjson_dep = b.dependency("simdjson", .{});
+    const simdjson_evex512: ?*std.Build.Step.WriteFile = if (target.result.cpu.arch == .x86_64) try fix_evex512_simdjson(b, simdjson_dep) else null;
+    const simdjson_source_file_root = if (simdjson_evex512) |evex512| evex512.getDirectory() else simdjson_dep.path("singleheader");
+
     const simdjson_lib = b.addStaticLibrary(.{
         .name = "simdjson",
         .target = target,
@@ -29,7 +32,7 @@ pub fn build(b: *std.Build) void {
     });
     simdjson_lib.linkLibCpp();
     simdjson_lib.addCSourceFiles(.{
-        .root = simdjson_dep.path("singleheader"),
+        .root = simdjson_source_file_root,
         .files = &.{"simdjson.cpp"},
         .flags = &.{
             b.fmt("--std={s}", .{compile_target}),
@@ -37,6 +40,7 @@ pub fn build(b: *std.Build) void {
     });
     simdjson_lib.addIncludePath(simdjson_dep.path("singleheader"));
     simdjson_lib.installHeadersDirectory(simdjson_dep.path("singleheader"), ".", .{ .include_extensions = &.{".h"} });
+    if (simdjson_evex512) |evex512| simdjson_lib.step.dependOn(&evex512.step);
     b.installArtifact(simdjson_lib);
 
     const fastgltf_lib: *std.Build.Step.Compile = switch (preferred_link_mode) {
@@ -87,4 +91,22 @@ pub fn build(b: *std.Build) void {
     const run = b.step("run", "Run example");
     run.dependOn(&run_artifact.step);
     // b.installArtifact(example);
+}
+
+fn fix_evex512_simdjson(b: *std.Build, simdjson_dep: *std.Build.Dependency) !*std.Build.Step.WriteFile {
+    const original_file = try std.fs.openFileAbsolute(simdjson_dep.path(b.pathJoin(&.{ "singleheader", "simdjson.cpp" })).getPath(b), .{});
+    defer original_file.close();
+
+    const original_content = try original_file.readToEndAlloc(b.allocator, std.math.maxInt(usize));
+    defer b.allocator.free(original_content);
+    const edited_content = try std.mem.replaceOwned(
+        u8,
+        b.allocator,
+        original_content,
+        "SIMDJSON_TARGET_REGION(\"avx512f,avx512dq,avx512cd,avx512bw,avx512vbmi,avx512vbmi2,avx512vl,avx2,bmi,pclmul,lzcnt,popcnt\")",
+        "SIMDJSON_TARGET_REGION(\"avx512f,avx512dq,avx512cd,avx512bw,avx512vbmi,avx512vbmi2,avx512vl,avx2,bmi,pclmul,lzcnt,popcnt,evex512\")",
+    );
+    defer b.allocator.free(edited_content);
+
+    return b.addWriteFile("simdjson.cpp", edited_content);
 }
